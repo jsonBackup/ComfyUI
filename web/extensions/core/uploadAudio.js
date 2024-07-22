@@ -17,7 +17,6 @@ function getResourceURL(subfolder, filename, type = "input") {
     "filename=" + encodeURIComponent(filename),
     "type=" + type,
     "subfolder=" + subfolder,
-    app.getPreviewFormatParam().substring(1),
     app.getRandParam().substring(1)
   ].join("&")
 
@@ -70,7 +69,7 @@ async function uploadFile(
 app.registerExtension({
   name: "Comfy.AudioWidget",
   async beforeRegisterNodeDef(nodeType, nodeData) {
-    if (["LoadAudio", "SaveAudio"].includes(nodeType.comfyClass)) {
+    if (["LoadAudio", "SaveAudio", "PreviewAudio"].includes(nodeType.comfyClass)) {
       nodeData.input.required.audioUI = ["AUDIO_UI"]
     }
   },
@@ -103,7 +102,7 @@ app.registerExtension({
             if (!audios) return
             const audio = audios[0]
             audioUIWidget.element.src = api.apiURL(
-              getResourceURL(audio.subfolder, audio.filename, "output")
+              getResourceURL(audio.subfolder, audio.filename, audio.type)
             )
             audioUIWidget.element.classList.remove("empty-audio-widget")
           }
@@ -118,7 +117,7 @@ app.registerExtension({
       if ("audio" in output) {
         const audioUIWidget = node.widgets.find((w) => w.name === "audioUI");
         const audio = output.audio[0];
-        audioUIWidget.element.src = api.apiURL(getResourceURL(audio.subfolder, audio.filename, "output"));
+        audioUIWidget.element.src = api.apiURL(getResourceURL(audio.subfolder, audio.filename, audio.type));
         audioUIWidget.element.classList.remove("empty-audio-widget");
       }
     }
@@ -145,8 +144,19 @@ app.registerExtension({
           )
         }
         // Initially load default audio file to audioUIWidget.
-        onAudioWidgetUpdate()
+        if (audioWidget.value) {
+          onAudioWidgetUpdate()
+        }
         audioWidget.callback = onAudioWidgetUpdate
+
+        // Load saved audio file widget values if restoring from workflow
+        const onGraphConfigured = node.onGraphConfigured;
+        node.onGraphConfigured = function() {
+          onGraphConfigured?.apply(this, arguments)
+          if (audioWidget.value) {
+            onAudioWidgetUpdate()
+          }
+        }
 
         const fileInput = document.createElement("input")
         fileInput.type = "file"

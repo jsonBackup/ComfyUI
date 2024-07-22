@@ -1084,7 +1084,7 @@ export class ComfyApp {
 			if (e.type == "keydown" && !e.repeat) {
 
 				// Ctrl + M mute/unmute
-				if (e.key === 'm' && e.ctrlKey) {
+				if (e.key === 'm' && (e.metaKey || e.ctrlKey)) {
 					if (this.selected_nodes) {
 						for (var i in this.selected_nodes) {
 							if (this.selected_nodes[i].mode === 2) { // never
@@ -1098,7 +1098,7 @@ export class ComfyApp {
 				}
 
 				// Ctrl + B bypass
-				if (e.key === 'b' && e.ctrlKey) {
+				if (e.key === 'b' && (e.metaKey || e.ctrlKey)) {
 					if (this.selected_nodes) {
 						for (var i in this.selected_nodes) {
 							if (this.selected_nodes[i].mode === 4) { // never
@@ -1599,7 +1599,7 @@ export class ComfyApp {
 				if (json) {
 					const workflow = JSON.parse(json);
 					const workflowName = getStorageValue("Comfy.PreviousWorkflow");
-					await this.loadGraphData(workflow, true, workflowName);
+					await this.loadGraphData(workflow, true, true, workflowName);
 					return true;
 				}
 			};
@@ -1966,6 +1966,14 @@ export class ComfyApp {
 							if (widget.value.startsWith("sample_")) {
 								widget.value = widget.value.slice(7);
 							}
+							if (widget.value === "euler_pp" || widget.value === "euler_ancestral_pp") {
+								widget.value = widget.value.slice(0, -3);
+								for (let w of node.widgets) {
+									if (w.name == "cfg") {
+										w.value *= 2.0;
+									}
+								}
+							}
 						}
 					}
 					if (node.type == "KSampler" || node.type == "KSamplerAdvanced" || node.type == "PrimitiveNode") {
@@ -2284,7 +2292,7 @@ export class ComfyApp {
 			} else {
 				this.showErrorOnFileLoad(file);
 			}
-		} else if (file.type === "audio/flac") {
+		} else if (file.type === "audio/flac" || file.type === "audio/x-flac") {
 			const pngInfo = await getFlacMetadata(file);
 			// Support loading workflows from that webp custom node.
 			const workflow = pngInfo?.workflow;
@@ -2306,14 +2314,14 @@ export class ComfyApp {
 				} else if(this.isApiJson(jsonContent)) {
 					this.loadApiJson(jsonContent, fileName);
 				} else {
-					await this.loadGraphData(jsonContent, true, fileName);
+					await this.loadGraphData(jsonContent, true, true, fileName);
 				}
 			};
 			reader.readAsText(file);
 		} else if (file.name?.endsWith(".latent") || file.name?.endsWith(".safetensors")) {
 			const info = await getLatentMetadata(file);
 			if (info.workflow) {
-				await this.loadGraphData(JSON.parse(info.workflow), true, fileName);
+				await this.loadGraphData(JSON.parse(info.workflow), true, true, fileName);
 			} else if (info.prompt) {
 				this.loadApiJson(JSON.parse(info.prompt));
 			} else {
